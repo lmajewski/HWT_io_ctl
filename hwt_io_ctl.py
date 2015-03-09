@@ -7,60 +7,46 @@ License: GPLv2+
 """
 import usb
 import sys
+import string
 import argparse
+import datetime
 from pylibftdi import BitBangDevice
 
-def flash_forever(rate):
-    "toggle bit zero at rate Hz"
-    # put an LED with 1Kohm or similar series resistor
-    # on D0 pin
-    with BitBangDevice() as bb:
-	while True:
-	    time.sleep(1.0 / (2 * rate))
-	    bb.port ^= 0x08
 
+pins = ["TXD", "RXD", "RTS", "CTS", "DTR", "DSR", "DCD", "RI"]
 
-def main():
-    if len(sys.argv) > 1:
-	rate = float(sys.argv[1])
-	flash_forever(rate)
-    else:
-	flash_forever(1)
+def hwtIOSetPinState(pin, state):
+	""" Execution routine """
 
+	if args.pin.upper() not in pins:
+		print 'HWT PWR - there is no "%s" pin available!' % args.pin
+		return
 
-if __name__ == '__main__':
-	parser = argparse.ArgumentParser(description=
-					 'HW test (HWT) PWR control (via FTDI232R)',
-					 formatter_class=argparse.RawDescriptionHelpFormatter,
-					 epilog='''\
-  ----------------------
-  FTDI232RL device pins:
-  ----------------------
-  D0         TXD
-  D1         RXD
-  D2         RTS#
-  D3         CTS#
-  D4         DTR#
-  D5         DSR#
-  D6         DCD#
-  D7         RI#''')
-	parser.add_argument('-d', '--device', required = True,
-			    help='FT232 Device to connect')
-	parser.add_argument('-p', '--pin', required = True,
-			    help='Pin to control - e.g. CTS')
-	parser.add_argument('--state', required = True,
-			    help='State - on/off')
-	parser.add_argument('--debug',
-			    action='store_true',
-			    default=False,
-			    dest='debug_en',
-			    help='Enable printing debug information')
-
-	args = parser.parse_args()
+	if state not in ["ON", "OFF"]:
+		print 'HWT PWR - state "%s" not supported!' % state
+		return
 
 	if args.debug_en:
-		print "HWT PWR control (FTDI based) - %s" % \
-		    str(datetime.datetime.now())[:19]
+		print "PIN: %s [%s]" % (pin, state)
+
+	with BitBangDevice() as bbdev:
+		tmp = bbdev.port
+		if args.debug_en:
+			sys.stdout.write("Current: 0x%x" % tmp)
+
+		idx = pins.index(pin)
+		if state == "OFF":
+			tmp |= (1 << idx)
+		else:
+			tmp &= ~(1 << idx)
+
+		if args.debug_en:
+			print " New: 0x%x" % tmp
+
+		bbdev.port = tmp
+
+def hwtIOInitDevice(deviceSerial):
+	""" Initialization routine """
 
 	# idVendor=0x0403, idProduct=0x6001
 	# are for FTDI USB <-> Serial converter
@@ -72,13 +58,46 @@ if __name__ == '__main__':
 		sys.exit()
 	else:
 		iSerialNumber = usb.util.get_string(dev, dev.iSerialNumber)
-		if iSerialNumber != args.device:
+		if iSerialNumber != deviceSerial:
 			print "iSerialNumber: %s does not match %s" % \
-			       (iSerialNumber, args.device)
+			       (iSerialNumber, deviceSerial)
 			sys.exit()
 
+	with BitBangDevice() as bbdev:
+		bbdev.direction = 0xFF
 
-		# if dev._serial is None:
-		# 	print "AAAA"
-		# 	dev._serial = usb.util.get_string(dev, dev.iSerial)
-		# print "Serial -> %s" % dev.serial
+def displayHelp():
+	print "\nFTDI232RL pins description:"
+	print "---------------------------"
+	i = 0
+	for pin in pins:
+		print "D%d:\t--->\t%s" % (i, pins[i])
+		i += 1
+	print "---------------------------\n"
+
+if __name__ == '__main__':
+	parser = argparse.ArgumentParser(description=
+					 'HW test (HWT) PWR control \
+					 (via FTDI232R)',)
+
+	parser.add_argument('--debug',
+			    action='store_true',
+			    default=False,
+			    dest='debug_en',
+			    help='Enable printing debug information')
+	parser.add_argument('-d', '--device', required = True,
+			    help='FT232 Device to connect')
+	parser.add_argument('-p', '--pin', required = True,
+			    help='Pin to control - e.g. CTS')
+	parser.add_argument('state', nargs='?', default="OFF",
+			    help='State - on/off')
+
+	args = parser.parse_args()
+
+	if args.debug_en:
+		print "HWT PWR control (FTDI232RL based) - %s" % \
+		    str(datetime.datetime.now())[:19]
+		displayHelp()
+
+	hwtIOInitDevice(args.device)
+	hwtIOSetPinState(args.pin.upper(), args.state.upper())
