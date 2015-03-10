@@ -15,6 +15,10 @@ from pylibftdi import BitBangDevice
 
 pins = ["TXD", "RXD", "RTS", "CTS", "DTR", "DSR", "DCD", "RI"]
 
+def hwtIOOffAll():
+	with BitBangDevice() as bbdev:
+		bbdev.port = 0xFF
+
 def hwtIOSetPinState(pin, state):
 	""" Execution routine """
 
@@ -63,9 +67,6 @@ def hwtIOInitDevice(deviceSerial):
 			       (iSerialNumber, deviceSerial)
 			sys.exit()
 
-	with BitBangDevice() as bbdev:
-		bbdev.direction = 0xFF
-
 def displayHelp():
 	print "\nFTDI232RL pins description:"
 	print "---------------------------"
@@ -85,6 +86,11 @@ if __name__ == '__main__':
 			    default=False,
 			    dest='debug_en',
 			    help='Enable printing debug information')
+	parser.add_argument('--off-all',
+			    action='store_true',
+			    default=False,
+			    dest='off_all',
+			    help='Disable all IO outputs (0xFF write)')
 	parser.add_argument('-d', '--device', required = True,
 			    help='FT232 Device to connect')
 	parser.add_argument('-p', '--pin', required = True,
@@ -93,6 +99,10 @@ if __name__ == '__main__':
 			    help='State - on/off')
 
 	args = parser.parse_args()
+
+	if args.off_all:
+		hwtIOOffAll()
+		sys.exit()
 
 	if args.debug_en:
 		print "HWT PWR control (FTDI232RL based) - %s" % \
