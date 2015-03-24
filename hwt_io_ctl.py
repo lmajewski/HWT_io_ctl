@@ -19,6 +19,10 @@ def hwtIOOffAll():
 	with BitBangDevice() as bbdev:
 		bbdev.port = 0xFF
 
+def hwtIOOnAll():
+	with BitBangDevice() as bbdev:
+		bbdev.port = 0x00
+
 def hwtIOSetPinState(pin, state):
 	""" Execution routine """
 
@@ -75,6 +79,8 @@ def displayHelp():
 		print "D%d:\t--->\t%s" % (i, pins[i])
 		i += 1
 	print "---------------------------\n"
+	print "One can also specify ALL to\n"
+	print "change state of all pins\n"
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description=
@@ -86,22 +92,20 @@ if __name__ == '__main__':
 			    default=False,
 			    dest='debug_en',
 			    help='Enable printing debug information')
-	parser.add_argument('--off-all',
-			    action='store_true',
-			    default=False,
-			    dest='off_all',
-			    help='Disable all IO outputs (0xFF write)')
 	parser.add_argument('-d', '--device', required = True,
 			    help='FT232 Device to connect')
 	parser.add_argument('-p', '--pin', required = True,
-			    help='Pin to control - e.g. CTS')
+			    help='Pin to control - e.g. CTS, ALL')
 	parser.add_argument('state', nargs='?', default="OFF",
 			    help='State - on/off')
 
 	args = parser.parse_args()
 
-	if args.off_all:
-		hwtIOOffAll()
+	if args.pin.upper() == "ALL":
+		if args.state.upper() == "ON":
+			hwtIOOnAll()
+		else:
+			hwtIOOffAll()
 		sys.exit()
 
 	if args.debug_en:
