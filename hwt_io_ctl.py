@@ -58,7 +58,7 @@ def hwtIOInitDevice(deviceSerial):
 
 	# idVendor=0x0403, idProduct=0x6001
 	# are for FTDI USB <-> Serial converter
-	# they shouldn't change -> conpare iSerialNumber
+	# they shouldn't change -> compare iSerialNumber
 
 	dev = usb.core.find(find_all=True, idVendor=0x0403, idProduct=0x6001)
 	if dev is None:
