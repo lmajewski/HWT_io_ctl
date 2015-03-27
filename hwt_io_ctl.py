@@ -15,15 +15,15 @@ from pylibftdi import BitBangDevice
 
 pins = ["TXD", "RXD", "RTS", "CTS", "DTR", "DSR", "DCD", "RI"]
 
-def hwtIOOffAll():
-	with BitBangDevice() as bbdev:
+def hwtIOOffAll(dev):
+	with BitBangDevice(dev) as bbdev:
 		bbdev.port = 0xFF
 
-def hwtIOOnAll():
-	with BitBangDevice() as bbdev:
+def hwtIOOnAll(dev):
+	with BitBangDevice(dev) as bbdev:
 		bbdev.port = 0x00
 
-def hwtIOSetPinState(pin, state):
+def hwtIOSetPinState(dev, pin, state):
 	""" Execution routine """
 
 	if args.pin.upper() not in pins:
@@ -37,7 +37,7 @@ def hwtIOSetPinState(pin, state):
 	if args.debug_en:
 		print "PIN: %s [%s]" % (pin, state)
 
-	with BitBangDevice() as bbdev:
+	with BitBangDevice(dev) as bbdev:
 		tmp = bbdev.port
 		if args.debug_en:
 			sys.stdout.write("Current: 0x%x" % tmp)
@@ -60,16 +60,19 @@ def hwtIOInitDevice(deviceSerial):
 	# are for FTDI USB <-> Serial converter
 	# they shouldn't change -> conpare iSerialNumber
 
-	dev = usb.core.find(idVendor=0x0403, idProduct=0x6001)
+	dev = usb.core.find(find_all=True, idVendor=0x0403, idProduct=0x6001)
 	if dev is None:
 		print 'HWT PWR device is not connected!'
 		sys.exit()
-	else:
-		iSerialNumber = usb.util.get_string(dev, dev.iSerialNumber)
-		if iSerialNumber != deviceSerial:
-			print "iSerialNumber: %s does not match %s" % \
-			       (iSerialNumber, deviceSerial)
-			sys.exit()
+
+	for dev_instance in dev:
+		iSerialNumber = usb.util.get_string(dev_instance,
+						    dev_instance.iSerialNumber)
+		if iSerialNumber == deviceSerial:
+			return
+
+	print "Device with serial: %s not found!" % deviceSerial
+	sys.exit()
 
 def displayHelp():
 	print "\nFTDI232RL pins description:"
@@ -101,11 +104,12 @@ if __name__ == '__main__':
 
 	args = parser.parse_args()
 
+	hwtIOInitDevice(args.device)
 	if args.pin.upper() == "ALL":
 		if args.state.upper() == "ON":
-			hwtIOOnAll()
+			hwtIOOnAll(args.device)
 		else:
-			hwtIOOffAll()
+			hwtIOOffAll(args.device)
 		sys.exit()
 
 	if args.debug_en:
@@ -113,5 +117,5 @@ if __name__ == '__main__':
 		    str(datetime.datetime.now())[:19]
 		displayHelp()
 
-	hwtIOInitDevice(args.device)
-	hwtIOSetPinState(args.pin.upper(), args.state.upper())
+	hwtIOSetPinState(args.device, args.pin.upper(),
+			 args.state.upper())
