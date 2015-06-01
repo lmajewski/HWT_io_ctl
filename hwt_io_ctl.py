@@ -23,23 +23,27 @@ def hwtIOOnAll(dev):
 	with BitBangDevice(dev) as bbdev:
 		bbdev.port = 0x00
 
-def hwtIOSetPinState(dev, pin, state):
+def hwtIOSetPinState(dev, pin, state, debug_en=False):
 	""" Execution routine """
 
-	if args.pin.upper() not in pins:
-		print 'HWT PWR - there is no "%s" pin available!' % args.pin
+	dev = dev.upper()
+	pin = pin.upper()
+	state = state.upper()
+
+	if pin not in pins:
+		print 'HWT PWR - there is no "%s" pin available!' % pin
 		return
 
 	if state not in ["ON", "OFF"]:
 		print 'HWT PWR - state "%s" not supported!' % state
 		return
 
-	if args.debug_en:
+	if debug_en:
 		print "PIN: %s [%s]" % (pin, state)
 
 	with BitBangDevice(dev) as bbdev:
 		tmp = bbdev.port
-		if args.debug_en:
+		if debug_en:
 			sys.stdout.write("Current: 0x%x" % tmp)
 
 		idx = pins.index(pin)
@@ -48,7 +52,7 @@ def hwtIOSetPinState(dev, pin, state):
 		else:
 			tmp &= ~(1 << idx)
 
-		if args.debug_en:
+		if debug_en:
 			print " New: 0x%x" % tmp
 
 		bbdev.port = tmp
@@ -117,5 +121,4 @@ if __name__ == '__main__':
 		    str(datetime.datetime.now())[:19]
 		displayHelp()
 
-	hwtIOSetPinState(args.device, args.pin.upper(),
-			 args.state.upper())
+	hwtIOSetPinState(args.device, args.pin, args.state, args.debug_en)
